@@ -11,8 +11,7 @@ from ..helper import safe_str
 def getContacts(x, driver):
     # XXX: why camel case? what is x?
     try:
-        contact = driver.get_contact_from_id(x)
-        return contact
+        return driver.get_contact_from_id(x)
     except Exception:
         return x
 
@@ -61,7 +60,7 @@ class Message(WhatsappObject):
 
         if 'content' in js_obj and js_obj["content"]:
             self.content = js_obj["content"]
-            self.safe_content = safe_str(self.content[0:25]) + '...'
+            self.safe_content = f'{safe_str(self.content[:25])}...'
         elif self.type == 'revoked':
             self.content = ''
             self.safe_content = '...'
@@ -98,7 +97,7 @@ class MediaMessage(Message):
         self.client_url = self._js_obj.get('clientUrl')
 
         extension = mimetypes.guess_extension(self.mime or '')
-        self.filename = ''.join([str(id(self)), extension or ''])
+        self.filename = ''.join([id(self), extension or ''])
 
     def save_media(self, path, force_download=False):
         # gets full media
@@ -140,13 +139,15 @@ class VCardMessage(Message):
         super(VCardMessage, self).__init__(js_obj, driver)
 
         self.type = js_obj["type"]
-        self.contacts = list()
+        self.contacts = []
 
         if js_obj["content"]:
             self.contacts.append(js_obj["content"].encode("ascii", "ignore"))
         else:
-            for card in js_obj["vcardList"]:
-                self.contacts.append(card["vcard"].encode("ascii", "ignore"))
+            self.contacts.extend(
+                card["vcard"].encode("ascii", "ignore")
+                for card in js_obj["vcardList"]
+            )
 
     def __repr__(self):
         return "<VCardMessage - {type} from {sender} at {timestamp} ({contacts})>".format(
@@ -199,13 +200,19 @@ class NotificationMessage(Message):
                 'leave': "Left the group"
             }
         }
-        sender = "" if not self.sender else ("from " + str(safe_str(self.sender.get_safe_name())))
+        sender = (
+            f"from {str(safe_str(self.sender.get_safe_name()))}"
+            if self.sender
+            else ""
+        )
+
         return "<NotificationMessage - {type} {recip} {sender} at {timestamp}>".format(
             type=readable[self.type][self.subtype],
             sender=sender,
             timestamp=self.timestamp,
-            recip="" if not hasattr(self, 'recipients') else "".join(
-                [safe_str(x.get_safe_name()) for x in self.recipients]),
+            recip="".join([safe_str(x.get_safe_name()) for x in self.recipients])
+            if hasattr(self, 'recipients')
+            else "",
         )
 
 

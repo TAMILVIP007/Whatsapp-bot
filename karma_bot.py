@@ -30,9 +30,12 @@ class karma_sticker:
         elif hasattr(message, 'caption') and message.caption == '#sticker':
 
             a = (driver.download_media(message, True))
-            print(str(a))
+            print(a)
             try:
-                if message.chat_id == '919675642959-1606755119@g.us' or message.chat_id == '919557666582-1580308963@g.us':  # custom setting you can ignore it
+                if message.chat_id in [
+                    '919675642959-1606755119@g.us',
+                    '919557666582-1580308963@g.us',
+                ]:  # custom setting you can ignore it
                     driver.driver.switch_to.window(driver.driver.window_handles[0])
                     driver.send_image_as_sticker(a, '919675642959-1606756367@g.us')
                 else:
@@ -65,8 +68,7 @@ class karma_word_game:
 
         l_word = len(self.word)
         gap = int(3.8 / 10 * l_word)  # finding how many letters will be hidden in the word
-        gap_list = random.sample(range(0, l_word - 1),
-                                 gap)  # finding which positions of the letters will be hidden in the word
+        gap_list = random.sample(range(l_word - 1), gap)
         w = list(self.word)
         for i in gap_list:
             w[i] = '_ '
@@ -97,9 +99,11 @@ class karma_word_game:
                 out = ""
                 if d != None:
                     for key, value in d.items():
-                        out += "~" + key + " :" + value[0] + "\n"
-                driver.chat_send_message(message.chat_id,
-                    "Right Answer 💯!\n\nWord Definition:\n{}".format(out))
+                        out += f"~{key} :{value[0]}" + "\n"
+                driver.chat_send_message(
+                    message.chat_id, f"Right Answer 💯!\n\nWord Definition:\n{out}"
+                )
+
 
                 self.score_board[self.players[message.sender.id]] += 1  # updating user score if he/she is right
                 return 1
@@ -123,24 +127,29 @@ class karma_word_game:
 
     # function to skip or go to next word
     def skip(self, driver, message):
-        if self.already_solved == 0 and self.c < 3:  # checking if word is not guessed then 3 people vote is required to change
-            if message.sender.id in self.skip_list_players:  # checking whether the player is already voted or not
-                driver.chat_send_message(message.chat_id,"You already voted to skip\n" + str(
-                    3 - self.c) + " vote needed now to skip this word")
+        if self.already_solved != 0 or self.c >= 3:
+            return
+        if message.sender.id in self.skip_list_players:  # checking whether the player is already voted or not
+            driver.chat_send_message(message.chat_id,"You already voted to skip\n" + str(
+                3 - self.c) + " vote needed now to skip this word")
+        else:
+            self.c += 1
+            if self.c == 3:
+                d = self.mean_dict.meaning(self.word)
+                out = ""
+                if d != None:
+                    for key, value in d.items():
+                        out += f"~{key} :{value[0]}" + "\n"
+                driver.chat_send_message(message.chat_id,"The Right Answer is:\n" + "*" + self.word + "*\n\nWord Definition:\n"+out)
+                self.already_solved = 1
+                self.new_word(driver, message)
             else:
-                self.c += 1
-                if self.c == 3:
-                    d = self.mean_dict.meaning(self.word)
-                    out = ""
-                    if d != None:
-                        for key, value in d.items():
-                            out += "~"+key + " :" + value[0] + "\n"
-                    driver.chat_send_message(message.chat_id,"The Right Answer is:\n" + "*" + self.word + "*\n\nWord Definition:\n"+out)
-                    self.already_solved = 1
-                    self.new_word(driver, message)
-                else:
-                    driver.chat_send_message(message.chat_id,str(3 - self.c) + " vote needed now to skip the word")
-                    self.skip_list_players.append(message.sender.id)
+                driver.chat_send_message(
+                    message.chat_id,
+                    f"{str(3 - self.c)} vote needed now to skip the word",
+                )
+
+                self.skip_list_players.append(message.sender.id)
 
     # function to show current word
     def current_word(self, driver, message):
@@ -149,10 +158,18 @@ class karma_word_game:
     # function to show the scoreboard
     def show_score(self, driver,message):
         if len(self.score_board) != 0:
-            out = ""
             print(self.score_board)
-            for key, value in {k: v for k, v in sorted(self.score_board.items(), key=lambda item: item[1],reverse=True)}.items():
-                out += str(value) + "--> " + str(key) + "\n"
+            out = "".join(
+                f"{str(value)}--> {str(key)}" + "\n"
+                for key, value in dict(
+                    sorted(
+                        self.score_board.items(),
+                        key=lambda item: item[1],
+                        reverse=True,
+                    )
+                ).items()
+            )
+
             driver.chat_send_message(message.chat_id,"-----------Score Board-----------\n\n" + out)
         else:
             driver.chat_send_message(message.chat_id,"Empty Score Board")
@@ -172,25 +189,22 @@ class tic_tac_game:
         self.status = ""
 
         # initial game map
-        self.g_map = [["⬜" for i in range(3)] for j in range(3)]
+        self.g_map = [["⬜" for _ in range(3)] for _ in range(3)]
 
         # list of place to be marked
         self.to_be_marked_list = [str(i) for i in range(1, 10)]
 
         # sending empty game board
         out = self.list_to_string(self.g_map)
-        out2 = "Game started {} vs {} ⚔️".format(str(driver.get_contact_from_id(self.players[0]).push_name),
-                                                 str(driver.get_contact_from_id(self.players[1]).push_name))
-        out3 = "First {} your turn \nSend #(box number) to place your mark on board.".format(
-            str(driver.get_contact_from_id(self.players[self.chance]).push_name))
+        out2 = f"Game started {str(driver.get_contact_from_id(self.players[0]).push_name)} vs {str(driver.get_contact_from_id(self.players[1]).push_name)} ⚔️"
+
+        out3 = f"First {str(driver.get_contact_from_id(self.players[self.chance]).push_name)} your turn \nSend #(box number) to place your mark on board."
+
         driver.chat_send_message(message.chat_id, out + "\n" + out2)
         driver.chat_send_message(message.chat_id, out3)
 
     def list_to_string(self, li):
-        s = []
-        for i in range(len(li)):
-            s1 = ''.join(li[i])
-            s.append(s1)
+        s = [''.join(li[i]) for i in range(len(li))]
         s = "\n".join(s)
         return s
 
@@ -211,32 +225,26 @@ class tic_tac_game:
                     p2 = int(m) % 3 - 1
 
                 # marking the position
-                if self.chance == 1:
-                    self.g_map[p1][p2] = "❌"
-                else:
-                    self.g_map[p1][p2] = "⭕"
-
+                self.g_map[p1][p2] = "❌" if self.chance == 1 else "⭕"
                 # checking if somebody win or not or its a draw
                 self.status = self.win_or_not(self.g_map)
 
-                if self.status != "":
-                    if self.status == "draw":
-                        out1 = self.list_to_string(self.g_map)
-                        out2 = "Its a Draw 🤕 \n{} {}".format(str(driver.get_contact_from_id(self.players[0]).push_name),
-                                                              str(driver.get_contact_from_id(self.players[1]).push_name))
-                        driver.chat_send_message(message.chat_id, out1 + "\n" + out2)
-                    else:
-                        out1 = self.list_to_string(self.g_map)
-                        out2 = "{} won the match 🎉🎉".format(str(driver.get_contact_from_id(self.status).push_name))
-                        driver.chat_send_message(message.chat_id, out1 + "\n" + out2)
-                else:
+                if self.status == "":
                     # shifting the chance
                     self.chance = abs(self.chance - 1)
 
                     out1 = self.list_to_string(self.g_map)
-                    out2 = "{} your turn now.".format(str(driver.get_contact_from_id(self.players[self.chance]).push_name))
-                    driver.chat_send_message(message.chat_id, out1 + "\n" + out2)
+                    out2 = f"{str(driver.get_contact_from_id(self.players[self.chance]).push_name)} your turn now."
 
+                elif self.status == "draw":
+                    out1 = self.list_to_string(self.g_map)
+                    out2 = f"Its a Draw 🤕 \n{str(driver.get_contact_from_id(self.players[0]).push_name)} {str(driver.get_contact_from_id(self.players[1]).push_name)}"
+
+                else:
+                    out1 = self.list_to_string(self.g_map)
+                    out2 = f"{str(driver.get_contact_from_id(self.status).push_name)} won the match 🎉🎉"
+
+                driver.chat_send_message(message.chat_id, out1 + "\n" + out2)
             else:
                 driver.chat_send_message(message.chat_id, "Place is already marked or invalid!")
         else:
@@ -244,48 +252,21 @@ class tic_tac_game:
 
     def win_or_not(self, l):
         if l[0][0] == l[0][1] and l[0][0] == l[0][2] and l[0][0] != "⬜":
-            if l[0][0] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
+            return self.players[1] if l[0][0] == "❌" else self.players[0]
         elif l[1][0] == l[1][1] and l[1][0] == l[1][2] and l[1][0] != "⬜":
-            if l[1][0] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
+            return self.players[1] if l[1][0] == "❌" else self.players[0]
         elif l[2][0] == l[2][1] and l[2][0] == l[2][2] and l[2][0] != "⬜":
-            if l[2][0] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
-
+            return self.players[1] if l[2][0] == "❌" else self.players[0]
         elif l[0][0] == l[1][0] and l[0][0] == l[2][0] and l[0][0] != "⬜":
-            if l[0][0] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
+            return self.players[1] if l[0][0] == "❌" else self.players[0]
         elif l[0][1] == l[1][1] and l[0][1] == l[2][1] and l[0][1] != "⬜":
-            if l[0][1] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
+            return self.players[1] if l[0][1] == "❌" else self.players[0]
         elif l[0][2] == l[1][2] and l[0][2] == l[2][2] and l[0][2] != "⬜":
-            if l[0][2] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
-
+            return self.players[1] if l[0][2] == "❌" else self.players[0]
         elif l[0][0] == l[1][1] and l[0][0] == l[2][2] and l[0][0] != "⬜":
-            if l[0][0] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
+            return self.players[1] if l[0][0] == "❌" else self.players[0]
         elif l[0][2] == l[1][1] and l[0][2] == l[2][0] and l[0][2] != "⬜":
-            if l[0][2] == "❌":
-                return self.players[1]
-            else:
-                return self.players[0]
-
+            return self.players[1] if l[0][2] == "❌" else self.players[0]
         elif len(self.to_be_marked_list) == 0:
             return "draw"
         else:
@@ -293,7 +274,8 @@ class tic_tac_game:
 
     def current_match(self, driver, message):
         out1 = self.list_to_string(self.g_map)
-        out2 = "{} your turn now.".format(str(driver.get_contact_from_id(self.players[self.chance]).push_name))
+        out2 = f"{str(driver.get_contact_from_id(self.players[self.chance]).push_name)} your turn now."
+
         driver.chat_send_message(message.chat_id, out1 + "\n" + out2)
 
 
@@ -319,13 +301,13 @@ class GFG:
                 wd.switch_to.window(win1)
                 a = wd.find_element_by_name('q')  # finding the google search box
                 a.clear()
-                a.send_keys(str(srh_title) + " code gfg in " + str(srh_lang))  # entering the question text
+                a.send_keys(f"{str(srh_title)} code gfg in {str(srh_lang)}")
                 a.send_keys(Keys.ENTER)  # pressing enter key to search
                 b = wd.find_elements_by_css_selector(".g a")  # selecting all the links shown in google result
                 got_it = False
                 for i in range(len(b)):
                     link = b[i].get_attribute('href')
-                    print(str(link))
+                    print(link)
                     if "www.geeksforgeeks.org" in str(link):  # selecting the first link that is from gfg
                         got_it = True
                         break
@@ -358,7 +340,7 @@ class GFG:
                             for l in j:
                                 p += l.text + "\n"
 
-                        if str(to_lang[i].text) == "":
+                        if not str(to_lang[i].text):
                             # getting the code as string from the divs
                             all_divmix = k[i].findAll("div", {"class": "container"})
                             p = ""
@@ -383,8 +365,13 @@ class GFG:
                             get_code = True
                             break
                     if get_code == False:
-                        driver.chat_send_message(message.chat_id,
-                                             "Code not in {} language or code not found".format(srh_lang) + "\n" + p)
+                        driver.chat_send_message(
+                            message.chat_id,
+                            f"Code not in {srh_lang} language or code not found"
+                            + "\n"
+                            + p,
+                        )
+
                 else:
                     driver.chat_send_message(message.chat_id, "No data in GFG")
         except Exception as ex:
@@ -403,34 +390,30 @@ class matcher:
         # to check given guessing pair is valid or not
         self.match_numbers = []
         for i in range(1, diff + 1):
-            for j in range(1, diff + 1):
-                self.match_numbers.append(str(i) + str(j))
-
+            self.match_numbers.extend(str(i) + str(j) for j in range(1, diff + 1))
         # time variable to check how much time it take to complete the game
         self.tim = time.time()
 
         # hidden layer boxes
-        self.map_cov = [["📦" for i in range(diff + 1)] for j in range(diff + 1)]
+        self.map_cov = [["📦" for _ in range(diff + 1)] for _ in range(diff + 1)]
         self.map_cov[0][0] = " "
         for i in range(1, diff + 1):
-            self.map_cov[0][i] = "  " + str(i) + "  "
+            self.map_cov[0][i] = f"  {str(i)}  "
             self.map_cov[i][0] = str(i)
 
         # it will the actual map of fig
-        self.map = [["." for i in range(diff + 1)] for j in range(diff + 1)]
+        self.map = [["." for _ in range(diff + 1)] for _ in range(diff + 1)]
         self.map[0][0] = " "
         for i in range(1, diff + 1):
-            self.map[0][i] = "  " + str(i) + "  "
+            self.map[0][i] = f"  {str(i)}  "
             self.map[i][0] = str(i)
 
         # list to choose random position
         ram = []
         for i in range(diff):
-            for j in range(diff):
-                ram.append([i, j])
-
+            ram.extend([i, j] for j in range(diff))
         # choosing random  fig index from emojis list
-        ran_fig_list = random.sample(range(0, len(emojis)), (diff * diff) // 2)
+        ran_fig_list = random.sample(range(len(emojis)), (diff * diff) // 2)
 
         # filling the map with fig
         for i in range(len(ran_fig_list)):
@@ -449,12 +432,8 @@ class matcher:
         driver.chat_send_message(message.chat_id, "Game Started!!" + "\n" + out2+"\nSend #help_match see the controls.")
 
     def list_to_string(self, li):
-        p = []
-        for j in range(len(li)):
-            s1 = ' '.join(li[j])
-            p.append(s1)
-        s = '\n'.join(p)
-        return s
+        p = [' '.join(li[j]) for j in range(len(li))]
+        return '\n'.join(p)
 
     def guess(self, driver, message, v1, v2):
         if v1 not in self.match_numbers or v2 not in self.match_numbers:
@@ -511,17 +490,17 @@ class mine:
         self.status = ""
 
         # hidden map grid
-        self.mine_cov_map = [["🔳" for i in range(10)] for j in range(10)]
+        self.mine_cov_map = [["🔳" for _ in range(10)] for _ in range(10)]
         self.mine_cov_map[0][0] = " "
         for i in range(1, 10):
-            self.mine_cov_map[0][i] = "  " + str(i) + "  "
+            self.mine_cov_map[0][i] = f"  {str(i)}  "
             self.mine_cov_map[i][0] = str(i)
 
         # map with bombs
-        self.bomb_map = [[" " for i in range(10)] for j in range(10)]
+        self.bomb_map = [[" " for _ in range(10)] for _ in range(10)]
         self.bomb_map[0][0] = " "
         for i in range(1, 10):
-            self.bomb_map[0][i] = "  " + str(i) + "  "
+            self.bomb_map[0][i] = f"  {str(i)}  "
             self.bomb_map[i][0] = str(i)
 
         # number of bombs
@@ -567,10 +546,9 @@ class mine:
                 self.status = "Lose"
 
             else:
-                que = []
-                que.append(ch)
+                que = [ch]
                 self.vis.add(str(ch[0]) + str(ch[1]))
-                while len(que) != 0:
+                while que:
 
                     pos = que[0]
                     que.pop(0)
@@ -622,7 +600,7 @@ class mine:
                     self.to_be_chosen.remove(self.to_str(i, j))
                     if flag == 0:
                         self.mine_cov_map[i][j] = "⚪"
-                        que = que + q
+                        que += q
                     else:
                         self.mine_cov_map[i][j] = emoj[flag - 1]
                 if len(self.to_be_chosen) == self.diff:
@@ -663,16 +641,10 @@ class mine:
         return str(p1) + str(p2)
 
     def check_notout_bound_pos(self, q, r):
-        if q >= 1 and q <= 9 and r >= 1 and r <= 9:
-            return True
-        else:
-            return False
+        return q >= 1 and q <= 9 and r >= 1 and r <= 9
 
     def listtostring(self, li):
-        s = []
-        for i in range(len(li)):
-            s1 = ''.join(li[i])
-            s.append(s1)
+        s = [''.join(li[i]) for i in range(len(li))]
         s = "\n".join(s)
         return s
 
@@ -719,7 +691,10 @@ class compiler:
 
             self.inuse = 0
         else:
-            driver.chat_send_message(message.chat_id,"Sorry!! Only Language supported are:-\n {} ".format(' ,'.join(self.languages)))
+            driver.chat_send_message(
+                message.chat_id,
+                f"Sorry!! Only Language supported are:-\n {' ,'.join(self.languages)} ",
+            )
 
 
 class ludo:

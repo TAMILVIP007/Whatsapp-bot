@@ -26,5 +26,5 @@ def convert_to_base64(source, is_thumbnail=False):
         mime = magic.Magic(mime=True)
         source.seek(0)
         content_type = mime.from_buffer(source.read())
-        archive = 'data:' + content_type + ';base64,' + archive
+        archive = f'data:{content_type};base64,{archive}'
     return archive

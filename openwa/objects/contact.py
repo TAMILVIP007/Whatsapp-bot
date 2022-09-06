@@ -55,13 +55,9 @@ class Contact(WhatsappObjectWithId):
         """
         name = (self.short_name or self.push_name or self.formatted_name)
         if (isinstance(name, string_types)):
-            if self.is_business:
-                safe_name = self.verified_name
-            else:
-                safe_name = safe_str(name)
+            return self.verified_name if self.is_business else safe_str(name)
         else:
-            safe_name = "Unknown"
-        return safe_name
+            return "Unknown"
 
     def __repr__(self):
         safe_name = self.get_safe_name()
