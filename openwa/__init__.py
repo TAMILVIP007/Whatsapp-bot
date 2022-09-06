@@ -95,7 +95,10 @@ class WhatsAPIDriver(object):
 
     def save_firefox_profile(self, remove_old=False):
         """Function to save the firefox profile to the permanant one"""
-        self.logger.info("Saving profile from %s to %s" % (self._profile.path, self._profile_path))
+        self.logger.info(
+            f"Saving profile from {self._profile.path} to {self._profile_path}"
+        )
+
 
         if remove_old:
             if os.path.exists(self._profile_path):
@@ -122,7 +125,7 @@ class WhatsAPIDriver(object):
             f.write(dumps(self.get_local_storage()))
 
     def set_proxy(self, proxy):
-        self.logger.info("Setting proxy to %s" % proxy)
+        self.logger.info(f"Setting proxy to {proxy}")
         proxy_address, proxy_port = proxy.split(":")
         self._profile.set_preference("network.proxy.type", 1)
         self._profile.set_preference("network.proxy.http", proxy_address)
@@ -145,10 +148,10 @@ class WhatsAPIDriver(object):
 
         if profile is not None:
             self._profile_path = profile
-            self.logger.info("Checking for profile at %s" % self._profile_path)
+            self.logger.info(f"Checking for profile at {self._profile_path}")
             if not os.path.exists(self._profile_path):
-                self.logger.critical("Could not find profile at %s" % profile)
-                raise WhatsAPIException("Could not find profile at %s" % profile)
+                self.logger.critical(f"Could not find profile at {profile}")
+                raise WhatsAPIException(f"Could not find profile at {profile}")
         else:
             self._profile_path = None
 
@@ -197,9 +200,9 @@ class WhatsAPIDriver(object):
         elif self.client == "chrome":
             self._profile = webdriver.ChromeOptions()
             if self._profile_path is not None:
-                self._profile.add_argument("--user-data-dir=%s" % self._profile_path)
+                self._profile.add_argument(f"--user-data-dir={self._profile_path}")
             if proxy is not None:
-                self._profile.add_argument('--proxy-server=%s' % proxy)
+                self._profile.add_argument(f'--proxy-server={proxy}')
             if headless:
                 self._profile.add_argument('--headless')
                 self._profile.add_argument('--disable-gpu')
@@ -229,7 +232,7 @@ class WhatsAPIDriver(object):
 
             if headless:
                 options.headless = True
-            
+
             capabilities = DesiredCapabilities.FIREFOX.copy()
             self.driver = webdriver.Remote(
                 command_executor=command_executor,
@@ -240,7 +243,7 @@ class WhatsAPIDriver(object):
             )
 
         else:
-            self.logger.error("Invalid client: %s" % client)
+            self.logger.error(f"Invalid client: {client}")
         self.username = username
         self.wapi_functions = WapiJsWrapper(self.driver, self, wapi_version)
 
@@ -277,11 +280,7 @@ class WhatsAPIDriver(object):
         self.driver.get(self._URL)
 
         profilePath = ""
-        if self.client == "chrome":
-            profilePath = ""
-        else:
-            profilePath = self._profile.path
-
+        profilePath = "" if self.client == "chrome" else self._profile.path
         local_storage_file = os.path.join(profilePath, self._LOCAL_STORAGE_FILE)
         if os.path.exists(local_storage_file):
             with open(local_storage_file) as f:
@@ -357,14 +356,14 @@ class WhatsAPIDriver(object):
         """Get pairing QR code from client"""
         self.reload_qr()
         qr = WebDriverWait(self.driver, self.element_timeout) \
-            .until(EC.visibility_of_element_located((By.CSS_SELECTOR, self._SELECTORS['qrCode'])))
+                .until(EC.visibility_of_element_located((By.CSS_SELECTOR, self._SELECTORS['qrCode'])))
 
         if filename is None:
             fd, fn_png = tempfile.mkstemp(prefix=self.username, suffix='.png')
         else:
             fd = os.open(filename, os.O_RDWR | os.O_CREAT)
             fn_png = os.path.abspath(filename)
-        self.logger.debug("QRcode image saved at %s" % fn_png)
+        self.logger.debug(f"QRcode image saved at {fn_png}")
         qr.screenshot(fn_png)
         os.close(fd)
         return fn_png
@@ -410,8 +409,7 @@ class WhatsAPIDriver(object):
         :return: Chat or Error
         :rtype: Chat
         """
-        chat = self.wapi_functions.getChatById(chat_id)
-        if chat:
+        if chat := self.wapi_functions.getChatById(chat_id):
             return factory_chat(chat, self)
 
         raise ChatNotFoundError("Chat {0} not found".format(chat_id))
@@ -425,8 +423,7 @@ class WhatsAPIDriver(object):
         :return: Chat or Error
         :rtype: Chat
         """
-        chat = self.wapi_functions.getChatByName(chat_name)
-        if chat:
+        if chat := self.wapi_functions.getChatByName(chat_name):
             return factory_chat(chat, self)
 
         raise ChatNotFoundError("Chat {0} not found".format(chat_name))
@@ -474,8 +471,7 @@ class WhatsAPIDriver(object):
         return [Contact(contact, self) for contact in my_contacts]
 
     def get_all_groups(self):
-        chats = self.wapi_functions.getAllGroups()
-        if chats:
+        if chats := self.wapi_functions.getAllGroups():
             return [factory_chat(chat, self) for chat in chats]
         else:
             return []
@@ -487,8 +483,7 @@ class WhatsAPIDriver(object):
         :return: List of chats
         :rtype: list[Chat]
         """
-        chats = self.wapi_functions.getAllChats()
-        if chats:
+        if chats := self.wapi_functions.getAllChats():
             return [factory_chat(chat, self) for chat in chats]
         else:
             return []
@@ -527,8 +522,7 @@ class WhatsAPIDriver(object):
         return self.wapi_functions.areAllMessagesLoaded(chat_id)
 
     def get_profile_pic_from_id(self, id):
-        profile_pic_url = self.wapi_functions.getProfilePicFromServer(id)
-        if profile_pic_url:
+        if profile_pic_url := self.wapi_functions.getProfilePicFromServer(id):
             return requests.get(profile_pic_url).content
         else:
             return False
@@ -614,11 +608,8 @@ class WhatsAPIDriver(object):
             include_notifications
         )
 
-        # process them
-        unread = [factory_message(message, self) for message in messages]
-
         # return them
-        return unread
+        return [factory_message(message, self) for message in messages]
 
     # get_unread_messages_in_chat()
 
@@ -727,11 +718,12 @@ class WhatsAPIDriver(object):
         return self.wapi_functions.sendVideoAsGif(imgBase64, chatid, filename, caption)
 
     def send_giphy(self, giphy_url, chat_id, caption):
-        match = re.search(r'https?:\/\/media\.giphy\.com\/media\/([a-zA-Z0-9]+)', giphy_url)
-        if match:
-            giphy_id = match.group(1)
-            filename = giphy_id + '.mp4'
-            resp = requests.get('https://i.giphy.com/' + filename)
+        if match := re.search(
+            r'https?:\/\/media\.giphy\.com\/media\/([a-zA-Z0-9]+)', giphy_url
+        ):
+            giphy_id = match[1]
+            filename = f'{giphy_id}.mp4'
+            resp = requests.get(f'https://i.giphy.com/{filename}')
             b64 = convert_to_base64(io.BytesIO(resp.content))
             return self.wapi_functions.sendVideoAsGif(b64, chat_id, filename, caption)
 

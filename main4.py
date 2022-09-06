@@ -40,7 +40,7 @@ while True:
                 print('safe_content', message.safe_content)
                 print('content', message.content)
                 # contact.chat.send_message(message.safe_content)
-            elif message.type == 'image' or message.type == 'video':
+            elif message.type in ['image', 'video']:
                 print('-- Image or Video')
                 print('filename', message.filename)
                 print('size', message.size)
